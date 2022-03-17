@@ -1,22 +1,20 @@
 import alpaca_trade_api as tradeapi
 import numpy as np
-import requests
+import datetime as date
 import warnings
 
 warnings.filterwarnings('ignore')
 
 SEC_KEY = 'ErfbtC51cM2GNWas76y1dc7wfiWeNONmvdxd32AX'
 PUB_KEY = 'PKDN7L1U2E94IU8IOX97'
-BASE_URL = 'https://paper-api.alpaca.markets'
-CRYPTO_BASE_URL = BASE_URL + '/v1beta1/crypto/{symbol}/trades'
+BASE_URL = 'https://paper-api.alpaca.markets/v2'
 
 class TradingBot():
 
   def __init__(self):
     self.api = tradeapi.REST(key_id=PUB_KEY, secret_key=SEC_KEY, base_url=BASE_URL)
     self.mode = 'buy'
-    self.asset_lst = ['AMZN']
-    self.portfolio = {}
+    self.asset_lst = ['AAPL']
     self.quantity = 0.01
     self.lower_buy_threshold = -0.001
     self.trend_buy_threshold = 0.002
@@ -30,9 +28,8 @@ class TradingBot():
       qty=quantity,
       side='buy',
       type='market', 
-      time_in_force='gtc' # Good 'til cancelled
+      time_in_force='gtc'
     )
-    self.portfolio[asset] = self.api.get_position(asset).cost_basis
     self.mode = 'sell'
 
   def sell_asset(self, asset, quantity):
@@ -41,15 +38,20 @@ class TradingBot():
       qty=quantity,
       side='sell',
       type='market', 
-      time_in_force='gtc' # Good 'til cancelled
+      time_in_force='gtc'
     )
     self.mode = 'buy'
 
-  def backtest(self, hours_to_test):
+  def backtest(self, days_to_test):
 
     historical_data = {}
     for asset in self.asset_lst:
-      market_data = self.api.get_barset(asset, 'minute', limit=60*hours_to_test)[asset]
+      market_data = self.api.get_bars(
+        asset, 
+        tradeapi.TimeFrame.Minute, 
+        (date.datetime.now() - date.timedelta(days=days_to_test + 1)).strftime('%Y-%m-%d'),
+        (date.datetime.now() - date.timedelta(days=1)).strftime('%Y-%m-%d')
+      )
       close_prices = np.array([bar.c for bar in market_data])
       historical_data[asset] = close_prices
 
@@ -87,4 +89,4 @@ class TradingBot():
     return
 
 bot = TradingBot()
-bot.backtest(16)
+bot.backtest(100)
